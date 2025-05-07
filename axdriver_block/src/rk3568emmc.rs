@@ -7,17 +7,19 @@ use dma_api::{DVec, Direction};
 use sdmmc::emmc::EMmcHost;
 use sdmmc::err::SdError;
 use sdmmc::BLOCK_SIZE;
+use sdmmc::emmc::clock::init_clk;
 
 //pub const EMMC_BASE: usize = IO_BASE + 0x300000;
-pub const EMMC_BASE: usize = 0xFE350000;
+pub const EMMC_BASE: usize = 0xFE310000;
 
 /// RK3568 SDHCI driver (Raspberry Pi SD card).
 pub struct EmmcDriver(EMmcHost);
 
 impl EmmcDriver {
     /// Initialize the SDHCI driver, returns `Ok` if successful.
-    pub fn try_new() -> DevResult<EmmcDriver> {
-        let mut ctrl = EMmcHost::new(0xFE350000);
+    pub fn try_new(emmc_base: usize) -> DevResult<EmmcDriver> {
+        let mut ctrl = EMmcHost::new(emmc_base);
+        let _ = init_clk(0xffff_0000_fdd2_0000);
         if ctrl.init().is_ok() {
             log::info!("RK3568 emmc: successfully initialized");
             Ok(EmmcDriver(ctrl))
@@ -63,37 +65,32 @@ impl BaseDriverOps for EmmcDriver {
 
 impl BlockDriverOps for EmmcDriver {
     fn read_block(&mut self, block_id: u64, buf: &mut [u8]) -> DevResult {
-        let mut temp_buffer = match DVec::zeros(BLOCK_SIZE, 0x1000, Direction::FromDevice) {
-            Some(buffer) => buffer,
-            None => return Err(DevError::NoMemory),
-        };
-
-        self.0.read_blocks(block_id as u32, 1, &mut temp_buffer)
-            .map_err(deal_emmc_err)?;
-
-        let copy_size = buf.len().min(BLOCK_SIZE);
-
-        temp_buffer.to_vec()
-            .iter()
-            .take(copy_size)
-            .enumerate()
-            .for_each(|(i, &byte)| buf[i] = byte);
-
-        Ok(())
+        if buf.len() < BLOCK_SIZE {
+            return Err(DevError::InvalidParam);
+        }
+        
+        // 检查对齐
+        let (prefix, _, suffix) = unsafe { buf.align_to_mut::<u32>() };
+        if !prefix.is_empty() || !suffix.is_empty() {
+            return Err(DevError::InvalidParam);
+        }
+        
+        // 直接使用原始的字节缓冲区
+        self.0
+            .read_blocks(block_id as u32, 1, buf)
+            .map_err(deal_emmc_err)
     }
 
     fn write_block(&mut self, block_id: u64, buf: &[u8]) -> DevResult {
-        let mut temp_buffer = match DVec::zeros(BLOCK_SIZE, 0x1000, Direction::ToDevice) {
-            Some(buffer) => buffer,
-            None => return Err(DevError::NoMemory),
-        };
-
-        let copy_size = buf.len().min(BLOCK_SIZE);
-        for i in 0..copy_size {
-            temp_buffer.set(i, buf[i]);
+        if buf.len() < BLOCK_SIZE {
+            return Err(DevError::Io);
         }
-
-        self.0.write_blocks(block_id as u32, 1, &mut temp_buffer)
+        let (prefix, _, suffix) = unsafe { buf.align_to::<u32>() };
+        if !prefix.is_empty() || !suffix.is_empty() {
+            return Err(DevError::InvalidParam);
+        }
+        self.0
+            .write_blocks(block_id as u32, 1, buf)
             .map_err(deal_emmc_err)
     }
 
