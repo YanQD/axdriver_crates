@@ -9,6 +9,8 @@ use sdmmc::err::SdError;
 use sdmmc::BLOCK_SIZE;
 use sdmmc::emmc::clock::init_clk;
 
+const OFFSET: usize = 5034496;
+
 // Base address for the RK3568 eMMC controller
 pub const EMMC_BASE: usize = 0xFE31_0000;
 pub const CRU_BASE: usize = 0xFDD2_0000;
@@ -77,6 +79,7 @@ impl BaseDriverOps for EmmcDriver {
 impl BlockDriverOps for EmmcDriver {
     /// Reads a single block from the eMMC device into the provided buffer.
     fn read_block(&mut self, block_id: u64, buf: &mut [u8]) -> DevResult {
+        let block_id = block_id + OFFSET as u64;
         if buf.len() < BLOCK_SIZE {
             return Err(DevError::InvalidParam);
         }
@@ -93,6 +96,7 @@ impl BlockDriverOps for EmmcDriver {
 
     /// Writes a single block to the eMMC device from the given buffer.
     fn write_block(&mut self, block_id: u64, buf: &[u8]) -> DevResult {
+        let block_id = block_id + OFFSET as u64;
         if buf.len() < BLOCK_SIZE {
             return Err(DevError::Io);
         }
