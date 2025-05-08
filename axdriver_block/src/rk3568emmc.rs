@@ -10,8 +10,8 @@ use sdmmc::BLOCK_SIZE;
 use sdmmc::emmc::clock::init_clk;
 
 // Base address for the RK3568 eMMC controller
-pub const EMMC_BASE: usize = 0xFE310000;
-pub const CRU_BASE: usize = 0xFFFF_0000_FDD2_0000;
+pub const EMMC_BASE: usize = 0xFE31_0000;
+pub const CRU_BASE: usize = 0xFDD2_0000;
 
 /// Driver for the RK3568 eMMC controller.
 pub struct EmmcDriver(EMmcHost);
@@ -27,9 +27,9 @@ impl EmmcDriver {
     ///
     /// * `Ok(EmmcDriver)` on success.
     /// * `Err(DevError::Io)` if initialization fails.
-    pub fn try_new(emmc_base: usize) -> DevResult<EmmcDriver> {
+    pub fn try_new(emmc_base: usize, cru_base: usize) -> DevResult<EmmcDriver> {
         let mut ctrl = EMmcHost::new(emmc_base);
-        let _ = init_clk(CRU_BASE);
+        let _ = init_clk(cru_base);
         if ctrl.init().is_ok() {
             log::info!("RK3568 eMMC: successfully initialized");
             Ok(EmmcDriver(ctrl))
