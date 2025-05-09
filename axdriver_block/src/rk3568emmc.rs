@@ -11,6 +11,8 @@ use sdmmc::emmc::clock::init_clk;
 
 const OFFSET: usize = 5034496;
 
+pub use sdmmc::{set_impl, Kernel};
+
 // Base address for the RK3568 eMMC controller
 pub const EMMC_BASE: usize = 0xFE31_0000;
 pub const CRU_BASE: usize = 0xFDD2_0000;

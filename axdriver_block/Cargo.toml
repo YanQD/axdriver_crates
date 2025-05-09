@@ -21,4 +21,4 @@ default = []
 log = "0.4"
 axdriver_base = { workspace = true }
 bcm2835-sdhci = { git = "https://github.com/lhw2002426/bcm2835-sdhci.git", rev = "e974f16", optional = true }
-sdmmc = { git = "https://github.com/YanQD/sdmmc.git", branch = "no_init", default-features = false, features = ["pio"], optional = true }
+sdmmc = { git = "https://github.com/YanQD/sdmmc.git", default-features = false, features = ["pio"], optional = true }
